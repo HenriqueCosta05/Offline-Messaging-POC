@@ -3,7 +3,16 @@ from pathlib import Path
 
 import pytest
 
-from bridge.provisioning import ProvisionError, derive_password, normalize_phone, validate_username
+from bridge.provisioning import (
+    Credentials,
+    ProvisionError,
+    ProvisioningConfig,
+    ProvisioningService,
+    derive_password,
+    localpart,
+    normalize_phone,
+    validate_username,
+)
 
 CASES = json.loads((Path(__file__).resolve().parents[2] / "docs/fixtures/identity-cases.json").read_text("utf-8"))
 
@@ -38,3 +47,77 @@ def test_derive_password_is_deterministic_per_phone():
     assert first != derive_password(b"secret", "+5511999990001")
     assert first != derive_password(b"other", "+5511999990000")
     assert "=" not in first and len(first) == 43
+
+
+PHONE = "+5511999990000"
+CONFIG = ProvisioningConfig(secret=b"s3cret", public_url="http://192.168.0.10:6167")
+
+
+class MemoryDirectory:
+    def __init__(self, entries=None):
+        self.entries = dict(entries or {})
+
+    def get(self, phone):
+        return self.entries.get(phone)
+
+    def put(self, phone, user_id):
+        self.entries[phone] = user_id
+
+
+class StubRegistrar:
+    def __init__(self, taken=()):
+        self.taken = set(taken)
+        self.registered = []
+
+    async def is_available(self, username):
+        return username not in self.taken
+
+    async def register(self, username, password):
+        self.registered.append((username, password))
+        return f"@{username}:hq.local"
+
+
+def service(directory=None, registrar=None):
+    return ProvisioningService(registrar or StubRegistrar(), directory or MemoryDirectory(), CONFIG)
+
+
+def test_localpart_strips_sigil_and_server():
+    assert localpart("@marina.costa:hq.local:8448") == "marina.costa"
+
+
+def test_lookup_normalizes_and_reads_directory():
+    directory = MemoryDirectory({PHONE: "@marina:hq.local"})
+    assert service(directory).lookup("+55 11 99999-0000") == "@marina:hq.local"
+    assert service(directory).lookup("+5511999990001") is None
+
+
+async def test_new_phone_registers_and_records():
+    registrar, directory = StubRegistrar(), MemoryDirectory()
+    creds = await service(directory, registrar).provision("+55 11 99999-0000", "Marina")
+    password = derive_password(CONFIG.secret, PHONE)
+    assert creds == Credentials("@marina:hq.local", CONFIG.public_url, password)
+    assert registrar.registered == [("marina", password)]
+    assert directory.entries == {PHONE: "@marina:hq.local"}
+
+
+async def test_known_phone_same_username_is_idempotent():
+    registrar = StubRegistrar(taken={"marina"})
+    directory = MemoryDirectory({PHONE: "@marina:hq.local"})
+    creds = await service(directory, registrar).provision(PHONE, "marina")
+    assert creds.user_id == "@marina:hq.local"
+    assert registrar.registered == []
+
+
+async def test_known_phone_other_username_is_phone_taken():
+    directory = MemoryDirectory({PHONE: "@marina:hq.local"})
+    with pytest.raises(ProvisionError) as err:
+        await service(directory).provision(PHONE, "outra")
+    assert (err.value.code, err.value.user_id) == ("phone_taken", "@marina:hq.local")
+
+
+async def test_new_phone_taken_username_is_rejected():
+    registrar = StubRegistrar(taken={"marina"})
+    with pytest.raises(ProvisionError) as err:
+        await service(registrar=registrar).provision(PHONE, "marina")
+    assert err.value.code == "username_taken"
+    assert registrar.registered == []
