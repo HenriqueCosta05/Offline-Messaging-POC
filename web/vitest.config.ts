@@ -8,5 +8,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/index.tsx', 'src/**/*.test.{ts,tsx}', 'src/test/**', 'src/mocks/**', 'src/@types/**', 'src/**/*.d.ts'],
+      thresholds: { lines: 80, branches: 80, functions: 80, statements: 80 },
+    },
   },
 });
