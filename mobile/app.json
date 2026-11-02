@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "offline-protocol-poc",
-    "slug": "offline-protocol-poc",
+    "name": "Offline Protocol PoC",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,43 +9,35 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
+      "bundleIdentifier": "dev.hqcosta.offlineprotocolpoc",
       "infoPlist": {
-        "NSBluetoothAlwaysUsageDescription": "Required for offline mesh communication",
-        "NSBluetoothPeripheralUsageDescription": "Required for offline mesh communication",
-        "UIBackgroundModes": [
-          "bluetooth-central",
-          "bluetooth-peripheral",
-          "bluetooth-central",
-          "bluetooth-peripheral"
-        ],
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "bundleIdentifier": "dev.hqcosta.offlineprotocolpoc"
+        "NSBluetoothAlwaysUsageDescription": "Para achar quem está perto e conversar sem internet.",
+        "NSMicrophoneUsageDescription": "Para chamadas e mensagens de voz.",
+        "NSContactsUsageDescription": "Para mostrar quais contatos já usam o app."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2f2235",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
+      "package": "dev.hqcosta.offlineprotocolpoc",
       "permissions": [
         "android.permission.BLUETOOTH_SCAN",
         "android.permission.BLUETOOTH_ADVERTISE",
         "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.BLUETOOTH",
-        "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_WIFI_STATE",
-        "android.permission.CHANGE_WIFI_STATE",
         "android.permission.NEARBY_WIFI_DEVICES",
-        "android.permission.INTERNET"
-      ],
-      "package": "dev.hqcosta.offlineprotocolpoc"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "web": {
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -53,22 +45,30 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#2f2235",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-notifications",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Para chamadas e mensagens de voz."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Para mostrar quais contatos já usam o app."
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "ad41e1b4-3168-4992-b850-866758f5433e"
-      }
-    },
-    "owner": "hqcosta.dev"
+    }
   }
 }

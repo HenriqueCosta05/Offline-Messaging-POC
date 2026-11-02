@@ -59,6 +59,20 @@ async def test_send_message_reaches_mesh(running):
         assert mesh.sent == [("m1", "bob", "hi")]
 
 
+async def test_failed_send_marks_message_failed_and_reports_error(running):
+    mesh, url = running
+
+    async def broken_send(id, to, content):
+        raise RuntimeError("radio off")
+
+    mesh.send = broken_send
+    async with connect(url, origin=ORIGIN) as ws:
+        await ws.send(json.dumps({"type": "send_message", "id": "m1", "to": "bob", "content": "hi"}))
+        frames = [json.loads(await asyncio.wait_for(ws.recv(), 1)) for _ in range(2)]
+        assert {"type": "delivery_status", "id": "m1", "status": "failed"} in frames
+        assert {"type": "error", "code": "send_failed", "message": "radio off"} in frames
+
+
 async def test_mesh_event_forwarded(running):
     mesh, url = running
     async with connect(url, origin=ORIGIN) as ws:

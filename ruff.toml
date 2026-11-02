@@ -1,0 +1,14 @@
+target-version = "py312"
+line-length = 120
+include = ["bridge/**/*.py", "scripts/**/*.py"]
+
+[lint]
+select = ["E", "F", "W", "I", "N", "B", "SIM", "C90", "PLR0912", "PLR0913", "PLR0915"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-args = 4
+max-branches = 10
+max-statements = 40

@@ -1,52 +1,60 @@
 import type { ServerFrame } from '@/@types/frames';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+type RawFrame = Record<string, unknown>;
+type FrameParser = (raw: RawFrame) => ServerFrame | null;
+
+const isRecord = (value: unknown): value is RawFrame =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 
+const isDeliveryStatus = (value: unknown): value is 'delivered' | 'failed' =>
+  value === 'delivered' || value === 'failed';
+
+const parseIdentity: FrameParser = ({ address }) =>
+  isString(address) ? { type: 'identity', address } : null;
+
+const parseMessage: FrameParser = ({ id, from, content, ts }) => {
+  if (!isString(id) || !isString(from)) return null;
+  if (typeof content !== 'string' || typeof ts !== 'number') return null;
+  return { type: 'message_received', id, from, content, ts };
+};
+
+const parseNeighborDiscovered: FrameParser = ({ id, transport, rssi }) => {
+  if (!isString(id) || !isString(transport)) return null;
+  return { type: 'neighbor_discovered', id, transport, ...(typeof rssi === 'number' ? { rssi } : {}) };
+};
+
+const parseNeighborLost: FrameParser = ({ id }) => (isString(id) ? { type: 'neighbor_lost', id } : null);
+
+const parseDeliveryStatus: FrameParser = ({ id, status }) =>
+  isString(id) && isDeliveryStatus(status) ? { type: 'delivery_status', id, status } : null;
+
+const parseError: FrameParser = ({ code, message }) =>
+  isString(code) && typeof message === 'string' ? { type: 'error', code, message } : null;
+
+const PARSERS: Record<string, FrameParser> = {
+  identity: parseIdentity,
+  message_received: parseMessage,
+  neighbor_discovered: parseNeighborDiscovered,
+  neighbor_lost: parseNeighborLost,
+  delivery_status: parseDeliveryStatus,
+  error: parseError,
+};
+
+const decode = (data: unknown): unknown => {
+  if (typeof data !== 'string') return data;
+  try {
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+};
+
 /** Validates an untrusted WebSocket payload; returns null for anything malformed. */
 export function parseFrame(data: unknown): ServerFrame | null {
-  let raw: unknown = data;
-  if (typeof data === 'string') {
-    try {
-      raw = JSON.parse(data);
-    } catch {
-      return null;
-    }
-  }
-  if (!isRecord(raw)) return null;
-
-  switch (raw.type) {
-    case 'identity':
-      return isString(raw.address) ? { type: 'identity', address: raw.address } : null;
-    case 'message_received':
-      return isString(raw.id) &&
-        isString(raw.from) &&
-        typeof raw.content === 'string' &&
-        typeof raw.ts === 'number'
-        ? { type: 'message_received', id: raw.id, from: raw.from, content: raw.content, ts: raw.ts }
-        : null;
-    case 'neighbor_discovered':
-      return isString(raw.id) && isString(raw.transport)
-        ? {
-            type: 'neighbor_discovered',
-            id: raw.id,
-            transport: raw.transport,
-            ...(typeof raw.rssi === 'number' ? { rssi: raw.rssi } : {}),
-          }
-        : null;
-    case 'neighbor_lost':
-      return isString(raw.id) ? { type: 'neighbor_lost', id: raw.id } : null;
-    case 'delivery_status':
-      return isString(raw.id) && (raw.status === 'delivered' || raw.status === 'failed')
-        ? { type: 'delivery_status', id: raw.id, status: raw.status }
-        : null;
-    case 'error':
-      return isString(raw.code) && typeof raw.message === 'string'
-        ? { type: 'error', code: raw.code, message: raw.message }
-        : null;
-    default:
-      return null;
-  }
+  const raw = decode(data);
+  if (!isRecord(raw) || typeof raw.type !== 'string') return null;
+  const parse = Object.hasOwn(PARSERS, raw.type) ? PARSERS[raw.type] : undefined;
+  return parse ? parse(raw) : null;
 }

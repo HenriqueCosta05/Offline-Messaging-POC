@@ -42,6 +42,22 @@ Scripts in `web/`: `npm test`, `npm run typecheck`, `npm run build`. Bridge test
 
 **Not verified:** the `SdkMesh` adapter has only been exercised through a fake mesh. Its event translation follows the SDK README and may need adjusting against the real bindings and live peers.
 
+## Matrix account provisioning
+
+The mobile onboarding asks the bridge to create a Matrix account for a phone number. The bridge registers it on your homeserver with a registration token and returns a password derived from the phone (HMAC), so it stores no passwords; `.bridge-state/phones.json` maps phone numbers to Matrix ids.
+
+```bash
+export PROVISION_TOKEN=<shared with the app>  PROVISION_SECRET=<long random>  MATRIX_REGISTRATION_TOKEN=<from the homeserver>
+python -m bridge --fake --matrix-homeserver http://localhost:6167 \
+  --matrix-public-url http://<your-lan-ip>:6167 --provision-host 0.0.0.0
+```
+
+Without a homeserver, `--fake-matrix` uses an in-memory registrar (only `PROVISION_TOKEN` and `PROVISION_SECRET` needed). Pass `--matrix-public-url` reachable from the phone too, or login will fail.
+
+Registration assumes the homeserver's only UIA stage is `m.login.registration_token` (true for continuwuity).
+
+**Not for production:** the password travels as plain HTTP on the LAN; the app's `PROVISION_TOKEN` is embedded in its bundle; anyone with `PROVISION_SECRET` can compute every account's password; phone numbers are not verified. **Anyone with the app (which carries the token) and your phone number can sign in as you**, and rotating `PROVISION_SECRET` breaks login for every existing account.
+
 ## Behaviour worth knowing
 
 - **Offline-first:** messages and peers persist in `localStorage`. Sending while the bridge is down queues the message as pending, and it is sent in order on reconnect.

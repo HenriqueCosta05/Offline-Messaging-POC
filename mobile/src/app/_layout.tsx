@@ -1,27 +1,41 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { useEffect, useState } from 'react';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { ChatProvider } from '@/store/chat-store';
+import { createAuthServices, readAuthConfig } from '@/adapters/create-auth';
+import { OnboardingFlow } from '@/application/onboarding-flow';
+import { OnboardingProvider } from '@/state/onboarding-provider';
+import { useOnboarding } from '@/state/use-onboarding';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+// Composition root: the only place that picks concrete adapters for the ports.
+const createFlow = () => new OnboardingFlow(createAuthServices(readAuthConfig()));
+
+function AppStack() {
+  const { step } = useOnboarding();
+  useEffect(() => {
+    if (step !== 'booting') SplashScreen.hideAsync();
+  }, [step]);
+  if (step === 'booting') return null;
+  const done = step === 'done';
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <ChatProvider>
-        <AnimatedSplashOverlay />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="chat/[id]" options={{ title: '' }} />
-          <Stack.Screen
-            name="call/[id]"
-            options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }}
-          />
-        </Stack>
-      </ChatProvider>
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={!done}>
+        <Stack.Screen name="(onboarding)" />
+      </Stack.Protected>
+      <Stack.Protected guard={done}>
+        <Stack.Screen name="(app)" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  const [flow] = useState(createFlow);
+  return (
+    <OnboardingProvider flow={flow}>
+      <AppStack />
+    </OnboardingProvider>
   );
 }
