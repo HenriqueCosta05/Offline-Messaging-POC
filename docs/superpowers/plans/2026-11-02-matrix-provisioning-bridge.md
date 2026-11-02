@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Sem git worktrees; trabalhe no checkout atual, branch `feat/matrix-onboarding`.
+- Ambiente: WSL, em `~/Projects/POCs/Offline-Protocol-POC`, com o venv ativo (`source .venv/bin/activate`). Sem venv: `uv venv --python 3.12 .venv && uv pip install -r bridge/requirements.txt`.
 - Um commit por tarefa, só com os arquivos da tarefa (o working tree tem alterações alheias: nunca `git add -A`). Mensagem ≤ 100 caracteres, sem linha de coautor.
 - Complexidade ciclomática ≤ 10; máx. 4 argumentos por função (ruff `PLR0913`), 10 branches, 40 statements.
 - Comentários e docstrings ≤ 2 linhas (`scripts/check_comments.py`).
@@ -195,7 +196,7 @@ aiohttp>=3.9
 pytest-aiohttp>=1.0
 ```
 
-Run: `pip install -r bridge/requirements.txt && python scripts/check_layers.py && python -m pytest scripts/tests -q`
+Run: `uv pip install -r bridge/requirements.txt && python scripts/check_layers.py && python -m pytest scripts/tests -q`
 Expected: `check_layers: 0 violação(ões)` e testes dos scripts passando.
 
 - [ ] **Step 7: Commit**
