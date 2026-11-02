@@ -5,8 +5,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOMAIN_MODULES = ("bridge/protocol.py",)
-FORBIDDEN = ("offline_protocol_sdk", "websockets", "nio", "bridge.manager", "bridge.server", "bridge.__main__")
+DOMAIN_MODULES = ("bridge/protocol.py", "bridge/provisioning.py")
+FORBIDDEN = ("offline_protocol_sdk", "websockets", "nio", "aiohttp", "bridge.manager", "bridge.server",
+             "bridge.__main__", "bridge.registrar", "bridge.phone_directory", "bridge.provision_http",
+             "bridge.provision_config")
 
 
 def imported_modules(tree: ast.AST) -> list[tuple[int, str]]:
