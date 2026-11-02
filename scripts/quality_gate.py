@@ -9,7 +9,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PY = sys.executable
-MOBILE_PENDING = "app recomeçado; ativado na Task 1 do plano mobile"
 
 
 @dataclass(frozen=True)
@@ -42,9 +41,10 @@ def checks() -> list[Check]:
         Check("repo", "testes dos scripts do gate", [PY, "-m", "pytest", "scripts/tests", "-q"]),
         Check("web", "complexidade + clean code (oxlint)", npm_command("run", "lint"), "web"),
         Check("web", "testes + cobertura 80%", npm_command("run", "test:coverage"), "web"),
-        Check("mobile", "complexidade + clean code + camadas (eslint)", None, pending_reason=MOBILE_PENDING),
-        Check("mobile", "tipos (tsc)", None, pending_reason=MOBILE_PENDING),
-        Check("mobile", "testes + cobertura 80%", None, pending_reason=MOBILE_PENDING),
+        Check("mobile", "complexidade + clean code + camadas (eslint)",
+              npm_command("run", "lint", "--", "--max-warnings=0"), "mobile"),
+        Check("mobile", "tipos (tsc)", npm_command("run", "typecheck"), "mobile"),
+        Check("mobile", "testes + cobertura 80%", npm_command("run", "test:coverage"), "mobile"),
     ]
 
 
