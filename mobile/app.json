@@ -1,26 +1,14 @@
 {
   "expo": {
-    "name": "offline-protocol-poc",
-    "slug": "offline-protocol-poc",
+    "name": "mobile",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "offlineprotocolpoc",
+    "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "infoPlist": {
-        "NSBluetoothAlwaysUsageDescription": "Required for offline mesh communication",
-        "NSBluetoothPeripheralUsageDescription": "Required for offline mesh communication",
-        "UIBackgroundModes": [
-          "bluetooth-central",
-          "bluetooth-peripheral",
-          "bluetooth-central",
-          "bluetooth-peripheral"
-        ],
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "bundleIdentifier": "dev.hqcosta.offlineprotocolpoc"
+      "icon": "./assets/expo.icon"
     },
     "android": {
       "adaptiveIcon": {
@@ -29,23 +17,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.BLUETOOTH_SCAN",
-        "android.permission.BLUETOOTH_ADVERTISE",
-        "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.BLUETOOTH",
-        "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_WIFI_STATE",
-        "android.permission.CHANGE_WIFI_STATE",
-        "android.permission.NEARBY_WIFI_DEVICES",
-        "android.permission.INTERNET"
-      ],
-      "package": "dev.hqcosta.offlineprotocolpoc"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -62,13 +37,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "ad41e1b4-3168-4992-b850-866758f5433e"
-      }
-    },
-    "owner": "hqcosta.dev"
+    }
   }
 }
