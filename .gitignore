@@ -47,3 +47,8 @@ web/dist/
 __pycache__/
 .pytest_cache/
 .bridge-state/
+
+# quality gate
+.coverage
+coverage/
+.ruff_cache/
