@@ -51,11 +51,11 @@ adaptadores (SDK, WebSocket, Matrix, CLI) ──▶ portas (Protocols) ──▶
 
 | Camada | Pode importar | Módulos atuais |
 |---|---|---|
-| Domínio + portas | stdlib, outros módulos de domínio | `bridge/protocol.py` (`MeshPort`, validação de frames) |
-| Adaptadores | domínio, portas, bibliotecas externas | `bridge/manager.py` (SDK), `bridge/server.py` (WebSocket) |
-| Composição | tudo | `bridge/__main__.py` |
+| Domínio + portas | stdlib, outros módulos de domínio | `bridge/protocol.py` (`MeshPort`, validação de frames), `bridge/provisioning.py` (`Registrar`, `PhoneDirectory`, regras de conta) |
+| Adaptadores | domínio, portas, bibliotecas externas | `bridge/manager.py` (SDK), `bridge/server.py` (WebSocket), `bridge/registrar.py`, `bridge/phone_directory.py`, `bridge/provision_http.py` |
+| Composição | tudo | `bridge/__main__.py`, `bridge/provision_config.py` |
 
-Um módulo novo de domínio entra em `DOMAIN_MODULES` em `scripts/check_layers.py`. O check falha se ele importar `offline_protocol_sdk`, `websockets`, `nio` ou um adaptador.
+Um módulo novo de domínio entra em `DOMAIN_MODULES` em `scripts/check_layers.py`. O check falha se ele importar `offline_protocol_sdk`, `websockets`, `nio`, `aiohttp` ou um adaptador.
 
 ### Mobile
 
