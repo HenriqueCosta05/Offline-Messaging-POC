@@ -25,7 +25,7 @@ git config core.hooksPath .githooks
 | Testes | pytest + cobertura de linhas e branches ≥ 80% | vitest + cobertura v8 ≥ 80% | vitest + cobertura v8 ≥ 80% nas camadas de lógica |
 | Comentários ≤ 2 linhas | `scripts/check_comments.py` | idem | idem |
 
-No mobile a cobertura mede `domain/`, `ports/`, `application/`, `adapters/`, `queries/` e `lib/`. Telas (`app/`) e componentes precisam de um renderer nativo, então ficam fora; por isso a lógica não mora neles.
+No mobile a cobertura mede `domain/`, `ports/`, `application/`, `adapters/`, `state/` e `lib/`. Telas (`app/`) e componentes precisam de um renderer nativo, então ficam fora; por isso a lógica não mora neles.
 
 O web usa oxlint em vez de ESLint porque `typescript-eslint` ainda não suporta TypeScript 7.
 
@@ -66,9 +66,9 @@ A camada é a pasta em `mobile/src/`. O ESLint falha quando um import sai do que
 | Domínio | `domain/` | só `@/domain` |
 | Portas | `ports/` | `@/domain`, `@/ports` |
 | Aplicação | `application/` | `@/domain`, `@/ports`, `@/application` |
-| Adaptadores | `adapters/` | `@/domain`, `@/ports`, `@/adapters`, `react-native`, SDK |
-| Estado de UI | `queries/` | `@/domain`, `@/ports`, `@/application`, `@/queries`, `react`, TanStack Query |
-| Composição e UI | `app/`, `components/`, `hooks/`, `lib/` | tudo |
+| Adaptadores | `adapters/` | `@/domain`, `@/ports`, `@/adapters`, `react-native`, `expo-*`, SDK Matrix |
+| Estado de UI | `state/` | `@/domain`, `@/ports`, `@/application`, `@/state`, `react` |
+| Composição e UI | `app/`, `components/`, `constants/`, `lib/` | tudo |
 
 ## Linguagem ubíqua
 
