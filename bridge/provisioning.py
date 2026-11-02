@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import re
 
-PHONE_RE = re.compile(r"\+[1-9]\d{7,14}")
+PHONE_RE = re.compile(r"\+[1-9][0-9]{7,14}")
 USERNAME_RE = re.compile(r"[a-z0-9._=-]{3,32}")
 PHONE_NOISE = str.maketrans("", "", " -().")
 
