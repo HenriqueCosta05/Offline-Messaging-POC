@@ -114,7 +114,7 @@ O provisionamento sobe só com `--matrix-homeserver` ou `--fake-matrix`. Faltand
 | Aplicação | `application/onboarding-flow.ts` | `OnboardingFlow` com estado imutável e `subscribe`, no padrão do `MeshSession` |
 | Adaptadores | `adapters/provisioning/`, `adapters/matrix/`, `adapters/permissions/`, `adapters/credentials/`, `adapters/create-auth.ts` | Real e demo de cada porta |
 | Estado de UI | `queries/onboarding-provider.tsx`, `queries/use-onboarding.ts` | Chave `['onboarding']`; mutações `useSubmitPhone`, `useSubmitUsername`, `useRequestPermission`, `useFinishOnboarding` |
-| Composição | `app/_layout.tsx` | Instancia `createAuthServices()`; `Stack.Protected` separa `(onboarding)` de `(tabs)` |
+| Composição | `app/_layout.tsx` | Instancia `createAuthServices()`; `Stack.Protected` separa `(onboarding)` de `(tabs)`; `MeshProvider` ganha `enabled` e só inicia o mesh com o onboarding concluído |
 
 ### Portas
 
@@ -141,7 +141,7 @@ CredentialStore  { load(): Promise<StoredAccount | null>; save(account): Promise
 |---|---|---|
 | Provisioning | `HttpProvisioning`: `fetch` com timeout de 10 s, `EXPO_PUBLIC_PROVISION_URL` e `EXPO_PUBLIC_PROVISION_TOKEN` | `DemoProvisioning` com latência simulada |
 | Matrix | `SdkMatrixAuth`: `ClientBuilder` com homeserver e session paths no diretório de documentos, `login` em modo senha | `DemoMatrixAuth` |
-| Permissões | `ExpoPermissions`: nearby reusa `adapters/mesh/android-permissions.ts`; no iOS dispara o prompt do Bluetooth iniciando o mesh brevemente; `expo-notifications`, `expo-audio`, `expo-contacts` | `DemoPermissions` (sempre `granted`) |
+| Permissões | `ExpoPermissions`: nearby reusa `meshPermissions` de `adapters/mesh/android-permissions.ts`; no iOS devolve `undetermined` (o sistema pergunta quando o mesh sobe, logo após "Concluir"); `expo-notifications`, `expo-audio`, `expo-contacts` | `DemoPermissions` (sempre `granted`) |
 | Credenciais | `SecureCredentialStore` (`expo-secure-store`) | Memória |
 
 `createAuthServices()` escolhe real ou demo pela presença do módulo nativo, como `createMesh`. Dependências novas via `npx expo install`: `@unomed/react-native-matrix-sdk`, `expo-secure-store`, `expo-notifications`, `expo-audio`, `expo-contacts`. O `app.json` ganha as descrições de uso do iOS e as permissões do Android.
