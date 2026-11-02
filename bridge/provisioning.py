@@ -1,5 +1,6 @@
 """Account provisioning rules: phone identity, Matrix username and derived password.
 Contract: docs/superpowers/specs/2026-11-02-matrix-onboarding-design.md."""
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -10,6 +11,7 @@ from typing import Protocol
 PHONE_RE = re.compile(r"\+[1-9][0-9]{7,14}")
 USERNAME_RE = re.compile(r"[a-z0-9._=-]{3,32}")
 PHONE_NOISE = str.maketrans("", "", " -().")
+PROVISION_BUDGET_S = 8  # the mobile client gives up at 10 s
 
 
 class ProvisionError(Exception):
@@ -53,6 +55,7 @@ class ProvisioningConfig:
 class Registrar(Protocol):
     async def is_available(self, username: str) -> bool: ...
     async def register(self, username: str, password: str) -> str: ...
+    async def login(self, username: str, password: str) -> str | None: ...
 
 
 class PhoneDirectory(Protocol):
@@ -67,11 +70,19 @@ def localpart(user_id: str) -> str:
 class ProvisioningService:
     def __init__(self, registrar: Registrar, directory: PhoneDirectory, config: ProvisioningConfig):
         self._registrar, self._directory, self._config = registrar, directory, config
+        self._lock = asyncio.Lock()
 
     def lookup(self, raw_phone: str) -> str | None:
         return self._directory.get(normalize_phone(raw_phone))
 
     async def provision(self, raw_phone: str, raw_username: str) -> Credentials:
+        try:
+            async with asyncio.timeout(PROVISION_BUDGET_S), self._lock:
+                return await self._provision(raw_phone, raw_username)
+        except TimeoutError as exc:
+            raise ProvisionError("homeserver_unavailable", "homeserver too slow") from exc
+
+    async def _provision(self, raw_phone: str, raw_username: str) -> Credentials:
         phone, username = normalize_phone(raw_phone), validate_username(raw_username)
         user_id = self._directory.get(phone)
         if user_id is None:
@@ -81,9 +92,13 @@ class ProvisioningService:
         return Credentials(user_id, self._config.public_url, self._password(phone))
 
     async def _register(self, phone: str, username: str) -> str:
-        if not await self._registrar.is_available(username):
-            raise ProvisionError("username_taken", "username already in use")
-        user_id = await self._registrar.register(username, self._password(phone))
+        password = self._password(phone)
+        if await self._registrar.is_available(username):
+            user_id = await self._registrar.register(username, password)
+        else:
+            user_id = await self._registrar.login(username, password)
+            if user_id is None:
+                raise ProvisionError("username_taken", "username already in use")
         self._directory.put(phone, user_id)
         return user_id
 

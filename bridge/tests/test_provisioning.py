@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -65,15 +66,25 @@ class MemoryDirectory:
 
 
 class StubRegistrar:
-    def __init__(self, taken=()):
+    def __init__(self, taken=(), passwords=None, delay=0):
         self.taken = set(taken)
+        self.passwords = dict(passwords or {})
         self.registered = []
+        self.delay = delay
 
     async def is_available(self, username):
+        await asyncio.sleep(self.delay)
         return username not in self.taken
+
+    async def login(self, username, password):
+        if self.passwords.get(username) == password:
+            return f"@{username}:hq.local"
+        return None
 
     async def register(self, username, password):
         self.registered.append((username, password))
+        self.taken.add(username)
+        self.passwords[username] = password
         return f"@{username}:hq.local"
 
 
@@ -121,3 +132,37 @@ async def test_new_phone_taken_username_is_rejected():
         await service(registrar=registrar).provision(PHONE, "marina")
     assert err.value.code == "username_taken"
     assert registrar.registered == []
+
+
+async def test_taken_username_with_matching_password_is_adopted():
+    password = derive_password(CONFIG.secret, PHONE)
+    registrar = StubRegistrar(taken={"marina"}, passwords={"marina": password})
+    directory = MemoryDirectory()
+    creds = await service(directory, registrar).provision(PHONE, "marina")
+    assert creds == Credentials("@marina:hq.local", CONFIG.public_url, password)
+    assert directory.entries == {PHONE: "@marina:hq.local"}
+    assert registrar.registered == []
+
+
+async def test_taken_username_with_other_password_is_rejected():
+    registrar = StubRegistrar(taken={"marina"}, passwords={"marina": "other"})
+    directory = MemoryDirectory()
+    with pytest.raises(ProvisionError) as err:
+        await service(directory, registrar).provision(PHONE, "marina")
+    assert err.value.code == "username_taken"
+    assert directory.entries == {}
+
+
+async def test_concurrent_provision_creates_one_account():
+    registrar = StubRegistrar(delay=0.01)
+    svc = service(registrar=registrar)
+    results = await asyncio.gather(*(svc.provision(PHONE, "marina") for _ in range(3)))
+    assert len(registrar.registered) == 1
+    assert {c.user_id for c in results} == {"@marina:hq.local"}
+
+
+async def test_slow_homeserver_times_out(monkeypatch):
+    monkeypatch.setattr("bridge.provisioning.PROVISION_BUDGET_S", 0.01)
+    with pytest.raises(ProvisionError) as err:
+        await service(registrar=StubRegistrar(delay=1)).provision(PHONE, "marina")
+    assert err.value.code == "homeserver_unavailable"
