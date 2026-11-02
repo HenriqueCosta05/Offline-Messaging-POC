@@ -217,6 +217,7 @@ O `401` vai para o log com o motivo real. Repetir após `login_failed` é seguro
 - `EXPO_PUBLIC_PROVISION_TOKEN` vai embutido no bundle: impede uso por estranhos na LAN, não por quem tem o app.
 - A senha trafega em HTTP puro na LAN. Aceito para a PoC; o README marca como inadequado para produção.
 - O telefone não é verificado (sem OTP): qualquer pessoa com o app e um número que não é dela cria conta com ele.
+- Consequência: quem tem o app (que carrega o token) e o seu número de telefone entra como você; girar `PROVISION_SECRET` quebra o login de todas as contas existentes.
 - `phones.json` liga telefone a MXID: dado pessoal, fica em `.bridge-state/` (já fora do git).
 
 ## Testes

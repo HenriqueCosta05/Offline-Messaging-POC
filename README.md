@@ -52,9 +52,11 @@ python -m bridge --fake --matrix-homeserver http://localhost:6167 \
   --matrix-public-url http://<your-lan-ip>:6167 --provision-host 0.0.0.0
 ```
 
-Without a homeserver, `--fake-matrix` uses an in-memory registrar (only `PROVISION_TOKEN` and `PROVISION_SECRET` needed).
+Without a homeserver, `--fake-matrix` uses an in-memory registrar (only `PROVISION_TOKEN` and `PROVISION_SECRET` needed). Pass `--matrix-public-url` reachable from the phone too, or login will fail.
 
-**Not for production:** the password travels as plain HTTP on the LAN; the app's `PROVISION_TOKEN` is embedded in its bundle; anyone with `PROVISION_SECRET` can compute every account's password; phone numbers are not verified.
+Registration assumes the homeserver's only UIA stage is `m.login.registration_token` (true for continuwuity).
+
+**Not for production:** the password travels as plain HTTP on the LAN; the app's `PROVISION_TOKEN` is embedded in its bundle; anyone with `PROVISION_SECRET` can compute every account's password; phone numbers are not verified. **Anyone with the app (which carries the token) and your phone number can sign in as you**, and rotating `PROVISION_SECRET` breaks login for every existing account.
 
 ## Behaviour worth knowing
 
