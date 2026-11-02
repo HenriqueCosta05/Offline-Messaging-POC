@@ -1,79 +1,121 @@
 """SDK adapter: the only module that imports offline_protocol_sdk."""
 import asyncio
 import time
-import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
 EventSink = Callable[[dict], Awaitable[None]]
 
 
+def translate(event: Any, client_ids: dict[str, str]) -> dict | None:
+    """Maps an SDK event (`type`-tagged JSON) to a browser frame; `client_ids` maps the
+    SDK message id back to the browser's id so delivery reports reach the right bubble."""
+    if not isinstance(event, dict):
+        return None
+    kind = event.get("type")
+    if kind == "message_received":
+        return {
+            "type": "message_received",
+            "id": str(event["message_id"]),
+            "from": str(event["sender"]),
+            "content": str(event.get("content", "")),
+            "ts": int(event.get("timestamp") or time.time() * 1000),
+        }
+    if kind == "neighbor_discovered":
+        frame = {
+            "type": "neighbor_discovered",
+            "id": str(event["peer_id"]),
+            "transport": str(event.get("transport", "unknown")),
+        }
+        if isinstance(event.get("rssi"), int):
+            frame["rssi"] = event["rssi"]
+        return frame
+    if kind == "neighbor_lost":
+        return {"type": "neighbor_lost", "id": str(event["peer_id"])}
+    if kind in ("message_delivered", "message_failed", "message_undeliverable"):
+        sdk_id = str(event["message_id"])
+        return {
+            "type": "delivery_status",
+            "id": client_ids.get(sdk_id, sdk_id),
+            "status": "delivered" if kind == "message_delivered" else "failed",
+        }
+    return None
+
+
+@dataclass(frozen=True)
+class MeshSettings:
+    app_id: str
+    profile: str
+    state_root: Path
+    relay_url: str | None = None
+    ble: bool = False
+
+
 class SdkMesh:
-    """MeshPort backed by the real Offline Protocol desktop bindings.
+    """MeshPort backed by the Offline Protocol desktop Python bindings."""
 
-    Event names and fields follow the SDK README. They are untested against a
-    live mesh, so adjust `_translate` if the installed bindings differ.
-    """
-
-    def __init__(self, app_id: str, user_id: str, state_root: Path):
-        self._app_id, self._user_id, self._state_root = app_id, user_id, state_root
+    def __init__(self, settings: MeshSettings):
+        self._app_id, self._profile, self._state_root = settings.app_id, settings.profile, settings.state_root
+        self._relay_url, self._ble = settings.relay_url, settings.ble
         self._pm = None
         self._sink: EventSink | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._client_ids: dict[str, str] = {}
 
     async def start(self, on_event: EventSink) -> None:
-        from offline_protocol_sdk import ProtocolManager  # lazy: needs a source build
-        from offline_protocol_sdk.offline_protocol import ProtocolConfig
+        try:  # lazy: the bindings have no prebuilt wheel and must be built from source
+            from offline_protocol_sdk import ProtocolManager  # pyright: ignore[reportMissingImports]
+            from offline_protocol_sdk.offline_protocol import (  # pyright: ignore[reportMissingImports]
+                OverflowPolicy,
+                ProtocolConfig,
+            )
+        except ImportError as exc:
+            raise SystemExit(
+                "The Offline Protocol Python SDK is not installed.\n"
+                "  - To try the app without it, run: python -m bridge --fake\n"
+                "  - For the real mesh, build the bindings (see 'Use the real mesh' in README.md)."
+            ) from exc
 
         self._sink, self._loop = on_event, asyncio.get_running_loop()
-        config = ProtocolConfig(app_id=self._app_id, user_id=self._user_id, encryption_enabled=True)
+        config = ProtocolConfig(
+            app_id=self._app_id,
+            profile=self._profile,
+            ble_enabled=self._ble,
+            wifi_direct_enabled=False,
+            internet_enabled=self._relay_url is not None,
+            reticulum_enabled=False,
+            nostr_enabled=False,
+            prefer_online=self._relay_url is not None,
+            initial_ttl=3,
+            encryption_enabled=True,
+            auto_key_exchange=True,
+            store_pending=True,
+            max_pending_per_peer=100,
+            max_pending_global=1000,
+            pending_ttl_ms=60_000,
+            overflow_policy=OverflowPolicy.DROP_OLDEST,
+        )
+        self._state_root.mkdir(parents=True, exist_ok=True)
         self._pm = ProtocolManager(config, event_handler=self._on_sdk_event, state_root=self._state_root)
-        await self._pm.__aenter__()
-        await self._pm.start()
-        await on_event({"type": "identity", "address": self._user_id})
+        await self._pm.__aenter__()  # starts the protocol
+        if self._relay_url is not None:
+            self._pm.internet.configure(server_url=self._relay_url)
+            await self._pm.internet.start()
+        await on_event({"type": "identity", "address": self._profile})
 
-    def _on_sdk_event(self, event) -> None:
-        frame = self._translate(event)
+    def _on_sdk_event(self, event: Any) -> None:
+        frame = translate(event, self._client_ids)
         if frame and self._sink and self._loop:
             asyncio.run_coroutine_threadsafe(self._sink(frame), self._loop)
 
-    @staticmethod
-    def _translate(event) -> dict | None:
-        data = event if isinstance(event, dict) else getattr(event, "__dict__", {})
-        kind = str(data.get("type") or type(event).__name__)
-        if kind in ("message_received", "MessageReceived"):
-            return {
-                "type": "message_received",
-                "id": str(data.get("id", uuid.uuid4())),
-                "from": str(data.get("sender") or data.get("from")),
-                "content": str(data.get("content", "")),
-                "ts": int(data.get("ts", time.time() * 1000)),
-            }
-        if kind in ("neighbor_discovered", "NeighborDiscovered"):
-            return {
-                "type": "neighbor_discovered",
-                "id": str(data.get("peer_id") or data.get("id")),
-                "transport": str(data.get("transport", "unknown")),
-                "rssi": data.get("rssi"),
-            }
-        if kind in ("neighbor_lost", "NeighborLost"):
-            return {"type": "neighbor_lost", "id": str(data.get("peer_id") or data.get("id"))}
-        if kind in ("delivery_status", "MessageDelivered", "MessageFailed"):
-            failed = "fail" in kind.lower() or data.get("status") == "failed"
-            return {
-                "type": "delivery_status",
-                "id": str(data.get("message_id") or data.get("id")),
-                "status": "failed" if failed else "delivered",
-            }
-        return None
-
     async def send(self, id: str, to: str, content: str) -> None:
-        await self._pm.send_message(to, content)
+        sdk_id = self._pm.send_message(to, content)  # synchronous in the SDK
+        self._client_ids[sdk_id] = id
 
     async def stop(self) -> None:
         if self._pm:
-            await self._pm.stop()
-            await self._pm.close()
+            await self._pm.__aexit__(None, None, None)
 
 
 class FakeMesh:
