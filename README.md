@@ -48,7 +48,8 @@ The mobile onboarding asks the bridge to create a Matrix account for a phone num
 
 ```bash
 export PROVISION_TOKEN=<shared with the app>  PROVISION_SECRET=<long random>  MATRIX_REGISTRATION_TOKEN=<from the homeserver>
-python -m bridge --fake --matrix-homeserver http://localhost:6167   --matrix-public-url http://<your-lan-ip>:6167 --provision-host 0.0.0.0
+python -m bridge --fake --matrix-homeserver http://localhost:6167 \
+  --matrix-public-url http://<your-lan-ip>:6167 --provision-host 0.0.0.0
 ```
 
 Without a homeserver, `--fake-matrix` uses an in-memory registrar (only `PROVISION_TOKEN` and `PROVISION_SECRET` needed).
